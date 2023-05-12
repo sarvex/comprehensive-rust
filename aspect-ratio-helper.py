@@ -75,9 +75,8 @@ def update_book_items(items):
         update_book_items(chapter['sub_items'])
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "supports":
-            sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] == "supports":
+        sys.exit(0)
 
     context, book = json.load(sys.stdin)
     update_book_items(book['sections'])
