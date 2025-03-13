@@ -1,7 +1,7 @@
 # Translations of Comprehensive Rust 🦀
 
 We would love to have your help with translating the course into other
-languages! Please see the [translations page] for the existing translations..
+languages! Please see the [translations page] for the existing translations.
 
 [translations page]: https://google.github.io/comprehensive-rust/running-the-course/translations.html
 
@@ -12,6 +12,10 @@ directory. The `.po` files are small text-based translation databases.
 > **Tip:** You should not edit the `.po` files by hand. Instead use a PO editor,
 > such as [Poedit](https://poedit.net/). There are also several online editors
 > available. This will ensure that the file is encoded correctly.
+
+> **Important:** You need to run `dprint fmt` after editing the PO file. This
+> ensures consistent formatting of the file. You need to install the Gettext
+> tools for this, see the Preparation section below.
 
 There is a `.po` file for each language. They are named after the [ISO 639]
 language codes: Danish would go into `po/da.po`, Korean would go into
@@ -27,55 +31,46 @@ GNU Gettext utilities below.
 
 ## Preparation
 
-We use two helpers for the translations:
-
-- `mdbook-xgettext`: This program extracts the English text. It is an mdbook
-  renderer.
-- `mdbook-gettext`: This program translates the book into a target language. It
-  is an mdbook preprocessor.
-
-Install both helpers with:
-
-```shell
-$ cargo install mdbook-i18n-helpers
-```
+Please make sure you can [build the course](README.md#building). You will also
+need the `msgmerge` and `msgcat` Gettext tool installed. Please see our
+[contribution guide](CONTRIBUTING.md#formatting) for details.
 
 ## Creating and Updating Translations
 
 First, you need to know how to update the `.pot` and `.po` files.
 
-As a general rule, you should never touch the auto-generated `po/messages.pot`
-file. You should also not edit the `msgid` entries in a `po/xx.po` file. If you
-find mistakes, you need to update the original English text instead. The fixes
-to the English text will flow into the `.po` files the next time the translators
-update them.
+You should never touch the auto-generated `book/xgettext/messages.pot` file. You
+should also never edit the `msgid` entries in a `po/xx.po` file. If you find
+mistakes, you need to update the original English text instead. The fixes to the
+English text will flow into the `.po` files the next time the translators update
+them.
 
 > **Tip:** See our [style guide](STYLE.md) for some things to keep in mind when
 > writing the translation.
 
 ### Generating the PO Template
 
-To extract the original English text and generate a `messages.pot` file, you run
-`mdbook` with a special renderer:
+To extract the original English text and generate a `messages.pot` file, you
+build the book. This will automatically invoke the `mdbook-xgettext` renderer:
 
 ```shell
-$ MDBOOK_OUTPUT='{"xgettext": {"pot-file": "messages.pot"}}' \
-  mdbook build -d po
+mdbook build
 ```
 
-You will find the generated POT file as `po/messages.pot`.
+You will find the generated POT file as `book/xgettext/messages.pot`.
 
 ### Initialize a New Translation
 
-To start a new translation, first generate the `po/messages.pot` file. Then use
-`msginit` to create a `xx.po` file for the fictional `xx` language:
+To start a new translation, first generate the `book/xgettext/messages.pot`
+file. Then use `msginit` to create a `xx.po` file for the fictional `xx`
+language:
 
 ```shell
-$ msginit -i po/messages.pot -l xx -o po/xx.po
+msginit -i book/xgettext/messages.pot -l xx -o po/xx.po
 ```
 
-You can also simply copy `po/messages.pot` to `po/xx.po`. Then update the file
-header (the first entry with `msgid ""`) to the correct language.
+You can also simply copy `book/xgettext/messages.pot` to `po/xx.po`. Then update
+the file header (the first entry with `msgid ""`) to the correct language.
 
 > **Tip:** You can use the
 > [`cloud-translate`](https://github.com/mgeisler/cloud-translate) tool to
@@ -89,25 +84,62 @@ header (the first entry with `msgid ""`) to the correct language.
 > translations will be wrong after this, so you must inspect them by hand
 > afterwards.
 
-### Updating an Existing Translation
+Next, please update the file `.github/labeler.yml` to include the new language:
 
-As the English text changes, translations gradually become outdated. To update
-the `po/xx.po` file with new messages, first extract the English text into a
-`po/messages.pot` template file. Then run
-
-```shell
-$ msgmerge --update po/xx.po po/messages.pot
+```diff
++"translation/xx":
++  - changed-files:
++      - any-glob-to-any-file: po/xx.po
 ```
 
-Unchanged messages will stay intact, deleted messages are marked as old, and
-updated messages are marked "fuzzy". A fuzzy entry will reuse the previous
-translation: you should then go over it and update it as necessary before you
-remove the fuzzy marker.
+### Refreshing an Existing Translation
+
+As the English text changes, translations gradually become outdated. The
+translations contain a POT-Creation-Date header which tells you when they were
+last updated with new English messages.
+
+To update the `po/xx.po` file with new messages, first extract the English text
+into a `book/xgettext/messages.pot` template file. Then run
+
+```shell
+msgmerge --update po/xx.po book/xgettext/messages.pot
+```
+
+Notice that the POT-Creation-Date field is updated to the current time and date.
+This becomes the new baseline for the translation: new English text added
+afterwards will not show up in your translation, including completely new pages.
+
+When running `msgmerge`, unchanged messages stay intact, deleted messages are
+marked as old, and updated messages are marked "fuzzy". A fuzzy entry is not
+used when we publish a translation! You have to go over the fuzzy entries by
+hand and verify that the translation is correct the fuzzy marker.
 
 > **Note:** Your PRs should either be the result of running `msgmerge` or the
 > result of new translation work on the PO file for your language. Avoid mixing
 > the two since it often creates a very large diff, which is hard or impossible
 > to review.
+
+### Editing a Translation
+
+You should install a PO editor to edit the `.po` file for your language. The
+files are simple text files, but it helps to use a dedicated editor since it
+will take care of escaping things like `"` correctly.
+
+There are many PO editors available. [Poedit](https://poedit.net/) is a popular
+cross-platform choice, but you can also find several online editors.
+
+### Formatting a Translation
+
+If the file is not formatted correct, you will get an error on the PR. Make sure
+to follow the [steps](#preparation) to install [Gettext] and
+[`dprint`](https://dprint.dev/) and then run:
+
+```shell
+dprint fmt po/xx.po
+```
+
+This will automatically format the `.po` file for you. Commit the formatting fix
+and push to your branch. Your PR should now be error free.
 
 ## Using Translations
 
@@ -122,15 +154,17 @@ output.
 
 ### Building a Translation
 
+Make sure you have gone through the [build setup](./README.md#building) at least
+once.
+
 To use the `po/xx.po` file for your output, run the following command:
 
 ```shell
-$ MDBOOK_BOOK__LANGUAGE=xx mdbook build -d book/xx
+MDBOOK_BOOK__LANGUAGE=xx mdbook build -d book/xx
 ```
 
-This will update the book's language to `xx`, it will make the `mdbook-gettext`
-preprocessor become active and tell it to use the `po/xx.po` file, and finally
-it will redirect the output to `book/xx`.
+This will tell the `mdbook-gettext` preprocessor to translate the book using the
+`po/xx.po` file. The HTML output can be found in `book/xx/html/`.
 
 ### Serving a Translation
 
@@ -138,7 +172,7 @@ Like normal, you can use `mdbook serve` to view your translation as you work on
 it. You use the same command as with `mdbook build` above:
 
 ```shell
-$ MDBOOK_BOOK__LANGUAGE=xx mdbook serve -d book/xx
+MDBOOK_BOOK__LANGUAGE=xx mdbook serve -d book/xx
 ```
 
 When you update the `po/xx.po` file, the translated book will automatically
@@ -180,3 +214,20 @@ translation and link it from the [translations page]. The idea is to celebrate
 the hard work, even if it is incomplete.
 
 [CODEOWNERS]: https://github.com/google/comprehensive-rust/blob/main/.github/CODEOWNERS
+
+## Status reports
+
+Two translation status reports are automatically generated:
+
+- [Translation status as checked in][translation-report]
+- [Translation status after syncing to the latest version of the source with msgmerge][synced-translation-report]
+
+You can also generate this report locally to see the effect of your local
+changes:
+
+```shell
+i18n-report translation-report.html po/*.po
+```
+
+[translation-report]: https://google.github.io/comprehensive-rust/translation-report.html
+[synced-translation-report]: https://google.github.io/comprehensive-rust/synced-translation-report.html

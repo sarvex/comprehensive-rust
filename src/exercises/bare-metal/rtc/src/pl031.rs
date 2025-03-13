@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core::ptr::{addr_of, addr_of_mut};
-
+// ANCHOR: solution
 #[repr(C, align(4))]
 struct Registers {
     /// Data register
@@ -55,43 +54,41 @@ impl Rtc {
     /// PL031 device, which must be mapped into the address space of the process
     /// as device memory and not have any other aliases.
     pub unsafe fn new(base_address: *mut u32) -> Self {
-        Self {
-            registers: base_address as *mut Registers,
-        }
+        Self { registers: base_address as *mut Registers }
     }
 
     /// Reads the current RTC value.
     pub fn read(&self) -> u32 {
-        // Safe because we know that self.registers points to the control
-        // registers of a PL031 device which is appropriately mapped.
-        unsafe { addr_of!((*self.registers).dr).read_volatile() }
+        // SAFETY: We know that self.registers points to the control registers
+        // of a PL031 device which is appropriately mapped.
+        unsafe { (&raw const (*self.registers).dr).read_volatile() }
     }
 
     /// Writes a match value. When the RTC value matches this then an interrupt
     /// will be generated (if it is enabled).
     pub fn set_match(&mut self, value: u32) {
-        // Safe because we know that self.registers points to the control
-        // registers of a PL031 device which is appropriately mapped.
-        unsafe { addr_of_mut!((*self.registers).mr).write_volatile(value) }
+        // SAFETY: We know that self.registers points to the control registers
+        // of a PL031 device which is appropriately mapped.
+        unsafe { (&raw mut (*self.registers).mr).write_volatile(value) }
     }
 
     /// Returns whether the match register matches the RTC value, whether or not
     /// the interrupt is enabled.
     pub fn matched(&self) -> bool {
-        // Safe because we know that self.registers points to the control
-        // registers of a PL031 device which is appropriately mapped.
-        let ris = unsafe { addr_of!((*self.registers).ris).read_volatile() };
+        // SAFETY: We know that self.registers points to the control registers
+        // of a PL031 device which is appropriately mapped.
+        let ris = unsafe { (&raw const (*self.registers).ris).read_volatile() };
         (ris & 0x01) != 0
     }
 
     /// Returns whether there is currently an interrupt pending.
     ///
-    /// This should be true iff `matched` returns true and the interrupt is
-    /// masked.
+    /// This should be true if and only if `matched` returns true and the
+    /// interrupt is masked.
     pub fn interrupt_pending(&self) -> bool {
-        // Safe because we know that self.registers points to the control
-        // registers of a PL031 device which is appropriately mapped.
-        let ris = unsafe { addr_of!((*self.registers).mis).read_volatile() };
+        // SAFETY: We know that self.registers points to the control registers
+        // of a PL031 device which is appropriately mapped.
+        let ris = unsafe { (&raw const (*self.registers).mis).read_volatile() };
         (ris & 0x01) != 0
     }
 
@@ -101,19 +98,19 @@ impl Rtc {
     /// interrupt is disabled.
     pub fn enable_interrupt(&mut self, mask: bool) {
         let imsc = if mask { 0x01 } else { 0x00 };
-        // Safe because we know that self.registers points to the control
-        // registers of a PL031 device which is appropriately mapped.
-        unsafe { addr_of_mut!((*self.registers).imsc).write_volatile(imsc) }
+        // SAFETY: We know that self.registers points to the control registers
+        // of a PL031 device which is appropriately mapped.
+        unsafe { (&raw mut (*self.registers).imsc).write_volatile(imsc) }
     }
 
     /// Clears a pending interrupt, if any.
     pub fn clear_interrupt(&mut self) {
-        // Safe because we know that self.registers points to the control
-        // registers of a PL031 device which is appropriately mapped.
-        unsafe { addr_of_mut!((*self.registers).icr).write_volatile(0x01) }
+        // SAFETY: We know that self.registers points to the control registers
+        // of a PL031 device which is appropriately mapped.
+        unsafe { (&raw mut (*self.registers).icr).write_volatile(0x01) }
     }
 }
 
-// Safe because it just contains a pointer to device memory, which can be
+// SAFETY: `Rtc` just contains a pointer to device memory, which can be
 // accessed from any context.
 unsafe impl Send for Rtc {}

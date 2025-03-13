@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use log::{info, trace};
-use pulldown_cmark::{Event, Parser, Tag};
+use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 use std::fs::{create_dir_all, File};
 use std::io::Write;
 use std::path::Path;
@@ -24,10 +24,10 @@ const FILENAME_END: &str = " -->";
 pub fn process(output_directory: &Path, input_contents: &str) -> anyhow::Result<()> {
     let parser = Parser::new(input_contents);
 
-    // Find a specially-formatted comment followed by a code block, and then call `write_output`
-    // with the contents of the code block, to write to a file named by the comment. Code blocks
-    // without matching comments will be ignored, as will comments which are not followed by a code
-    // block.
+    // Find a specially-formatted comment followed by a code block, and then call
+    // `write_output` with the contents of the code block, to write to a file
+    // named by the comment. Code blocks without matching comments will be
+    // ignored, as will comments which are not followed by a code block.
     let mut next_filename: Option<String> = None;
     let mut current_file: Option<File> = None;
     for event in parser {
@@ -61,8 +61,8 @@ pub fn process(output_directory: &Path, input_contents: &str) -> anyhow::Result<
                     output_file.write(text.as_bytes())?;
                 }
             }
-            Event::End(Tag::CodeBlock(x)) => {
-                info!("End   {:?}", x);
+            Event::End(TagEnd::CodeBlock) => {
+                info!("End");
                 current_file = None;
             }
             _ => {}

@@ -15,7 +15,6 @@
 #![allow(unused)]
 
 use core::fmt::{self, Write};
-use core::ptr::{addr_of, addr_of_mut};
 
 // ANCHOR: Flags
 use bitflags::bitflags;
@@ -114,9 +113,7 @@ impl Uart {
     /// PL011 device, which must be mapped into the address space of the process
     /// as device memory and not have any other aliases.
     pub unsafe fn new(base_address: *mut u32) -> Self {
-        Self {
-            registers: base_address as *mut Registers,
-        }
+        Self { registers: base_address as *mut Registers }
     }
 
     /// Writes a single byte to the UART.
@@ -124,32 +121,35 @@ impl Uart {
         // Wait until there is room in the TX buffer.
         while self.read_flag_register().contains(Flags::TXFF) {}
 
-        // Safe because we know that self.registers points to the control
-        // registers of a PL011 device which is appropriately mapped.
+        // SAFETY: We know that self.registers points to the control registers
+        // of a PL011 device which is appropriately mapped.
         unsafe {
             // Write to the TX buffer.
-            addr_of_mut!((*self.registers).dr).write_volatile(byte.into());
+            (&raw mut (*self.registers).dr).write_volatile(byte.into());
         }
 
         // Wait until the UART is no longer busy.
         while self.read_flag_register().contains(Flags::BUSY) {}
     }
 
-    /// Reads and returns a pending byte, or `None` if nothing has been received.
+    /// Reads and returns a pending byte, or `None` if nothing has been
+    /// received.
     pub fn read_byte(&self) -> Option<u8> {
         if self.read_flag_register().contains(Flags::RXFE) {
             None
         } else {
-            let data = unsafe { addr_of!((*self.registers).dr).read_volatile() };
+            // SAFETY: We know that self.registers points to the control
+            // registers of a PL011 device which is appropriately mapped.
+            let data = unsafe { (&raw const (*self.registers).dr).read_volatile() };
             // TODO: Check for error conditions in bits 8-11.
             Some(data as u8)
         }
     }
 
     fn read_flag_register(&self) -> Flags {
-        // Safe because we know that self.registers points to the control
-        // registers of a PL011 device which is appropriately mapped.
-        unsafe { addr_of!((*self.registers).fr).read_volatile() }
+        // SAFETY: We know that self.registers points to the control registers
+        // of a PL011 device which is appropriately mapped.
+        unsafe { (&raw const (*self.registers).fr).read_volatile() }
     }
 }
 // ANCHOR_END: Uart
